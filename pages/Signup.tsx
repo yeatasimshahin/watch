@@ -26,7 +26,7 @@ export const Signup: React.FC = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      navigate('/account');
+      navigate('/');
     }
   }, [user, navigate]);
 
@@ -87,18 +87,18 @@ export const Signup: React.FC = () => {
           });
 
         if (profileError) {
-           console.error('Profile creation warning:', profileError);
-           // Non-blocking, continue
+          console.error('Profile creation warning:', profileError);
+          // Non-blocking, continue
         }
 
         // 3. Handle Success
         // If email confirmation is off, user is logged in automatically.
         // If on, session is null.
         if (authData.session) {
-           navigate('/account');
+          navigate('/');
         } else {
-           alert('Account created successfully! Please check your email to confirm your account.');
-           navigate('/login');
+          alert('Account created successfully! Please check your email to confirm your account.');
+          navigate('/login');
         }
       }
     } catch (err: any) {
@@ -113,7 +113,7 @@ export const Signup: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        
+
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold tracking-tighter text-slate-900 block mb-2">RUIZ</Link>
           <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Create Account</h2>
@@ -238,13 +238,13 @@ export const Signup: React.FC = () => {
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-             <p className="text-xs text-slate-500 mb-4">Already have an account?</p>
-             <Link 
-               to="/login" 
-               className="inline-block w-full text-center py-3 border border-slate-200 rounded-sm text-xs font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-50 transition-colors"
-             >
-               Sign In
-             </Link>
+            <p className="text-xs text-slate-500 mb-4">Already have an account?</p>
+            <Link
+              to="/login"
+              className="inline-block w-full text-center py-3 border border-slate-200 rounded-sm text-xs font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-50 transition-colors"
+            >
+              Sign In
+            </Link>
           </div>
         </div>
       </div>

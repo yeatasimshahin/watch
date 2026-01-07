@@ -11,7 +11,7 @@ const ADMIN_ROLES = ['super_admin', 'catalog_manager', 'order_manager', 'content
 export const Login: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,36 +20,13 @@ export const Login: React.FC = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      checkRoleAndRedirect(user.id);
+      checkRoleAndRedirect();
     }
   }, [user]);
 
-  const checkRoleAndRedirect = async (userId: string) => {
-    try {
-      // Fetch roles for the user
-      // Assuming 'user_roles' table maps user_id to role_id, and 'roles' table has the name
-      const { data: userRoles } = await supabase
-        .from('user_roles')
-        .select(`
-          role:roles (name)
-        `)
-        .eq('user_id', userId);
-
-      // Flatten roles array
-      const roleNames = userRoles?.map((r: any) => r.role?.name) || [];
-      
-      // Check if user has any admin role
-      const isAdmin = roleNames.some((r: string) => ADMIN_ROLES.includes(r));
-
-      if (isAdmin) {
-        navigate('/admin');
-      } else {
-        navigate('/account');
-      }
-    } catch (err) {
-      // Fallback to customer account if role check fails
-      navigate('/account');
-    }
+  const checkRoleAndRedirect = async () => {
+    // Redirect all users to homepage after login
+    navigate('/');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -67,7 +44,7 @@ export const Login: React.FC = () => {
 
       if (data.user) {
         // Redirect logic handled by useEffect, but we call it here for faster response
-        await checkRoleAndRedirect(data.user.id);
+        await checkRoleAndRedirect();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
@@ -80,7 +57,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        
+
         {/* Header */}
         <div className="text-center">
           <Link to="/" className="text-3xl font-bold tracking-tighter text-slate-900 block mb-2">RUIZ</Link>
@@ -174,27 +151,27 @@ export const Login: React.FC = () => {
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-             <p className="text-xs text-slate-500 mb-4">Don't have an account?</p>
-             <Link 
-               to="/register" 
-               className="inline-block w-full text-center py-3 border border-slate-200 rounded-sm text-xs font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-50 transition-colors"
-             >
-               Create Account
-             </Link>
+            <p className="text-xs text-slate-500 mb-4">Don't have an account?</p>
+            <Link
+              to="/register"
+              className="inline-block w-full text-center py-3 border border-slate-200 rounded-sm text-xs font-bold uppercase tracking-widest text-slate-900 hover:bg-slate-50 transition-colors"
+            >
+              Create Account
+            </Link>
           </div>
         </div>
-        
+
         {/* Trust Strip */}
         <div className="flex justify-center space-x-6 text-slate-400">
-           <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
-              <Icon icon={FiShield} className="mr-2" size={14} /> Secure
-           </div>
-           <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
-              <Icon icon={FiTruck} className="mr-2" size={14} /> Fast
-           </div>
-           <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
-              <Icon icon={FiCheckCircle} className="mr-2" size={14} /> Genuine
-           </div>
+          <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
+            <Icon icon={FiShield} className="mr-2" size={14} /> Secure
+          </div>
+          <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
+            <Icon icon={FiTruck} className="mr-2" size={14} /> Fast
+          </div>
+          <div className="flex items-center text-[10px] font-bold uppercase tracking-wider">
+            <Icon icon={FiCheckCircle} className="mr-2" size={14} /> Genuine
+          </div>
         </div>
       </div>
     </div>
