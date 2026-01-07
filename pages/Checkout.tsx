@@ -68,6 +68,7 @@ export const Checkout: React.FC = () => {
   });
 
   const [userAddresses, setUserAddresses] = useState<any[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
   const fillAddress = (addr: any) => {
     setFormData(prev => ({
@@ -81,6 +82,7 @@ export const Checkout: React.FC = () => {
       area: addr.area || '',
       zip: addr.zip || '',
     }));
+    setSelectedAddressId(addr.id);
   };
 
 
@@ -413,6 +415,7 @@ export const Checkout: React.FC = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+    setSelectedAddressId(null);
   };
 
   const whatsappHelp = `Hi Ruiz, I'm checking out. Name: ${formData.name || 'Guest'}, Phone: ${formData.phone || '...'}, Items: ${cart.length}. Please assist.`;
@@ -510,11 +513,11 @@ export const Checkout: React.FC = () => {
                           <div
                             key={addr.id}
                             onClick={() => fillAddress(addr)}
-                            className={`cursor-pointer border p-4 rounded-sm transition-all hover:border-slate-900 group ${formData.address === addr.address_line ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900' : 'border-slate-200 bg-white'}`}
+                            className={`cursor-pointer border p-4 rounded-sm transition-all hover:border-slate-900 group ${selectedAddressId === addr.id ? 'border-slate-900 bg-slate-50 ring-1 ring-slate-900' : 'border-slate-200 bg-white'}`}
                           >
                             <div className="flex justify-between items-start mb-1">
                               <span className="text-[10px] font-bold uppercase tracking-widest bg-slate-200 text-slate-600 px-2 py-0.5 rounded-sm group-hover:bg-slate-900 group-hover:text-white transition-colors">{addr.label}</span>
-                              {formData.address === addr.address_line && <Icon icon={FiCheck} className="text-slate-900" />}
+                              {selectedAddressId === addr.id && <Icon icon={FiCheck} className="text-slate-900" />}
                             </div>
                             <p className="text-sm font-bold text-slate-900">{addr.full_name}</p>
                             <p className="text-xs text-slate-500 truncate">{addr.address_line}, {addr.thana}</p>
