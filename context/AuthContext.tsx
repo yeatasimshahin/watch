@@ -35,7 +35,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('Signing out...');
+
+      // 1. Optimistically clear React state
+      setUser(null);
+      setSession(null);
+
+      // 2. Clear Supabase LocalStorage items manually (Failsafe)
+      // Supabase default key format: sb-<project_ref>-auth-token
+      // We will clear all keys starting with 'sb-' just to be safe, or simply localStorage.clear() if appropriate, 
+      // but specific targeting is safer.
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // 3. Call actual API signOut
+      const { error } = await supabase.auth.signOut();
+      if (error) console.error('Error signing out:', error);
+
+      console.log('Sign out complete');
+    } catch (err) {
+      console.error('Unexpected error during sign out:', err);
+      // Even if API fails, ensure local state implies logged out
+      setUser(null);
+      setSession(null);
+    }
   };
 
   return (

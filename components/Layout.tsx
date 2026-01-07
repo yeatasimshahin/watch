@@ -232,7 +232,7 @@ export const Header: React.FC = () => {
                         )}
                         <Link to="/account" className="block px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-slate-900">My Dashboard</Link>
                         <Link to="/track-order" className="block px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 hover:text-slate-900">Order Tracking</Link>
-                        <button onClick={() => signOut()} className="w-full text-left block px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-500 hover:bg-red-50">Logout</button>
+                        <button onClick={async () => { await signOut(); navigate('/'); }} className="w-full text-left block px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-500 hover:bg-red-50">Logout</button>
                       </>
                     ) : (
                       <>
@@ -253,8 +253,8 @@ export const Header: React.FC = () => {
                 key={link.path}
                 to={link.path}
                 className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-all pb-1 border-b-2 ${location.pathname === link.path
-                    ? 'text-slate-900 border-slate-900'
-                    : 'text-slate-400 border-transparent hover:text-slate-900 hover:border-slate-200'
+                  ? 'text-slate-900 border-slate-900'
+                  : 'text-slate-400 border-transparent hover:text-slate-900 hover:border-slate-200'
                   }`}
               >
                 {link.name}
@@ -291,7 +291,7 @@ export const Header: React.FC = () => {
                     )}
                     <Link to="/account" className="block text-sm font-bold uppercase tracking-widest text-slate-600">My Dashboard</Link>
                     <Link to="/track-order" className="block text-sm font-bold uppercase tracking-widest text-slate-600">Track Order</Link>
-                    <button onClick={() => signOut()} className="text-sm font-bold uppercase tracking-widest text-red-500">Sign Out</button>
+                    <button onClick={async () => { await signOut(); navigate('/'); }} className="text-sm font-bold uppercase tracking-widest text-red-500">Sign Out</button>
                   </>
                 ) : (
                   <>
