@@ -32,7 +32,19 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const [coupon, setCoupon] = useState<Coupon | null>(() => {
     const saved = localStorage.getItem('ruiz_cart_coupon');
-    return saved ? JSON.parse(saved) : null;
+    if (saved) {
+      try {
+        const c = JSON.parse(saved);
+        // Migration: If amount is missing but discount_value exists (legacy cache), use it.
+        if (c && c.amount === undefined && (c as any).discount_value !== undefined) {
+          c.amount = (c as any).discount_value;
+        }
+        return c;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -84,9 +96,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
     let discount = 0;
     if (coupon.discount_type === 'fixed') {
-      discount = coupon.discount_value;
-    } else if (coupon.discount_type === 'percentage') {
-      discount = Math.round((subtotal * coupon.discount_value) / 100);
+      discount = coupon.amount;
+    } else if (coupon.discount_type === 'percent') {
+      discount = Math.round((subtotal * coupon.amount) / 100);
       if (coupon.max_discount && discount > coupon.max_discount) {
         discount = coupon.max_discount;
       }

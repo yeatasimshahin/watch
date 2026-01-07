@@ -7,8 +7,9 @@ import { Icon } from '../components/Icon';
 import {
   FiPlus, FiDownload, FiSearch, FiEdit3, FiCopy,
   FiTrash2, FiX, FiCheck, FiAlertCircle,
-  FiPercent, FiDollarSign, FiRefreshCcw, FiBell, FiLock, FiMinus
+  FiPercent, FiDollarSign, FiRefreshCcw, FiBell, FiLock, FiCalendar, FiUsers, FiTag
 } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Coupon, CouponEntitlement, MarqueeSettings } from '../types';
 
 const ADMIN_ROLES = ['super_admin', 'order_manager'];
@@ -51,6 +52,7 @@ export const AdminCoupons: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
   const [dialogLoading, setDialogLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'restrictions' | 'marketing'>('general');
 
   // Form State
   const [formData, setFormData] = useState<Partial<Coupon>>({
@@ -146,6 +148,7 @@ export const AdminCoupons: React.FC = () => {
     setAllowedEmails([]);
     setShowInMarquee(false);
     setMarqueeMessage('');
+    setActiveTab('general');
     setIsDialogOpen(true);
   };
 
@@ -154,7 +157,7 @@ export const AdminCoupons: React.FC = () => {
     setFormData({
       code: coupon.code,
       discount_type: coupon.discount_type,
-      discount_value: coupon.discount_value,
+      amount: coupon.amount,
       min_subtotal: coupon.min_subtotal,
       max_uses: coupon.max_uses,
       max_uses_per_user: coupon.max_uses_per_user,
@@ -203,13 +206,13 @@ export const AdminCoupons: React.FC = () => {
     try {
       // Validate
       if (!formData.code) throw new Error("Code is required");
-      if (formData.discount_value! <= 0) throw new Error("Value must be greater than 0");
-      if (formData.discount_type === 'percent' && formData.discount_value! > 100) throw new Error("Percentage cannot exceed 100%");
+      if (formData.amount! <= 0) throw new Error("Value must be greater than 0");
+      if (formData.discount_type === 'percent' && formData.amount! > 100) throw new Error("Percentage cannot exceed 100%");
 
       const payload = {
         code: formData.code.toUpperCase().replace(/\s+/g, ''),
         discount_type: formData.discount_type,
-        amount: formData.discount_value, // DB column is 'amount'
+        amount: formData.amount, // DB column is 'amount'
         min_subtotal: formData.min_subtotal || 0,
         max_uses: formData.max_uses || null,
         max_uses_per_user: formData.max_uses_per_user || null,
@@ -283,7 +286,7 @@ export const AdminCoupons: React.FC = () => {
       const { error } = await supabase.from('coupons').insert({
         code: newCode,
         discount_type: coupon.discount_type,
-        amount: coupon.discount_value, // Map UI 'discount_value' to DB 'amount'
+        amount: coupon.amount, // Map UI 'discount_value' to DB 'amount'
         min_subtotal: coupon.min_subtotal,
         max_uses: coupon.max_uses,
         max_uses_per_user: coupon.max_uses_per_user,
@@ -325,7 +328,7 @@ export const AdminCoupons: React.FC = () => {
     const rows = filteredData.map(c => [
       c.code,
       c.discount_type,
-      c.discount_value,
+      c.amount,
       c.min_subtotal,
       c.max_uses || 'Unlimited',
       c.starts_at ? formatDate(c.starts_at) : '-',
@@ -380,386 +383,305 @@ export const AdminCoupons: React.FC = () => {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Coupons</h1>
-          <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-medium">
-            Create and manage promo codes • {filteredData.length} entries
-          </p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Coupons</h1>
+          <p className="text-sm text-slate-500 mt-2 font-medium">Manage discounts and promotional campaigns.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={fetchCoupons} className="p-2 bg-white border border-slate-200 rounded-sm hover:bg-slate-50 text-slate-600 transition-all">
+          <button onClick={fetchCoupons} className="p-3 bg-white border border-slate-200 rounded-sm hover:bg-slate-50 text-slate-600 transition-all shadow-sm">
             <Icon icon={FiRefreshCcw} size={16} />
           </button>
-          <button onClick={handleExport} className="hidden sm:flex items-center px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all">
+          <button onClick={handleExport} className="hidden sm:flex items-center px-6 py-3 bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-slate-50 transition-all shadow-sm">
             <Icon icon={FiDownload} className="mr-2" /> Export
           </button>
-          <button onClick={handleCreate} className="flex items-center px-5 py-2.5 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-slate-800 transition-all shadow-sm">
-            <Icon icon={FiPlus} className="mr-2" /> Create Coupon
+          <button onClick={handleCreate} className="flex items-center px-6 py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-black transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">
+            <Icon icon={FiPlus} className="mr-2" /> Create Campaign
           </button>
         </div>
       </div>
 
       {/* FILTERS */}
-      <div className="bg-white border border-slate-200 p-4 rounded-sm mb-6 flex flex-col sm:flex-row gap-4 items-center shadow-sm">
-        <div className="relative flex-grow w-full sm:w-auto">
-          <Icon icon={FiSearch} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div className="bg-white border border-slate-100 p-1 mb-8 rounded-sm shadow-sm flex flex-col md:flex-row gap-1">
+        <div className="relative flex-grow">
+          <Icon icon={FiSearch} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            placeholder="Search by code..."
+            placeholder="Search campaigns..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-sm text-sm focus:border-slate-900 outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-white text-sm font-medium outline-none"
           />
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
+        <div className="flex border-t md:border-t-0 md:border-l border-slate-100">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-sm text-xs font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-slate-900 flex-1 sm:flex-none"
+            className="px-6 py-3 bg-white text-xs font-bold uppercase tracking-widest text-slate-600 outline-none hover:bg-slate-50 cursor-pointer"
           >
-            <option value="all">All Status</option>
+            <option value="all">Status: All</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as any)}
-            className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-sm text-xs font-bold uppercase tracking-wide text-slate-600 outline-none focus:border-slate-900 flex-1 sm:flex-none"
+            className="px-6 py-3 bg-white text-xs font-bold uppercase tracking-widest text-slate-600 outline-none hover:bg-slate-50 cursor-pointer border-l border-slate-100"
           >
-            <option value="all">All Types</option>
+            <option value="all">Type: All</option>
             <option value="percent">Percentage</option>
             <option value="fixed">Fixed Amount</option>
           </select>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white border border-slate-200 rounded-sm shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Code</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Discount</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Usage</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500">Validity</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                [1, 2, 3, 4, 5].map(i => (
-                  <tr key={i} className="animate-pulse">
-                    <td colSpan={6} className="px-6 py-6"><div className="h-4 bg-slate-100 rounded w-1/2"></div></td>
-                  </tr>
-                ))
-              ) : filteredData.length === 0 ? (
+      {/* CONTENT GRID/TABLE */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-40 bg-slate-100 animate-pulse rounded-sm" />)}
+        </div>
+      ) : filteredData.length === 0 ? (
+        <div className="text-center py-20 bg-white border border-dashed border-slate-200 rounded-sm">
+          <Icon icon={FiTag} className="mx-auto text-slate-300 mb-4" size={48} />
+          <h3 className="text-lg font-bold text-slate-900">No campaigns found</h3>
+          <p className="text-slate-500 mt-1">Try adjusting your search or filters.</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-4">
+            {filteredData.map(coupon => (
+              <div key={coupon.id} className="bg-white p-5 border border-slate-100 rounded-sm shadow-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <span className="font-mono text-lg font-bold text-slate-900 bg-slate-50 px-2 py-1 rounded-sm border border-slate-100">{coupon.code}</span>
+                    <p className="text-xs text-slate-500 mt-2 font-medium uppercase tracking-wide">{coupon.discount_type}</p>
+                  </div>
+                  <Badge variant={coupon.is_active ? 'success' : 'secondary'}>{coupon.is_active ? 'Active' : 'Inactive'}</Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 py-4 border-t border-b border-slate-50 mb-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400">Value</label>
+                    <p className="text-sm font-bold text-slate-900">{coupon.discount_type === 'percent' ? `${coupon.amount}%` : formatCurrency(coupon.amount)}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-slate-400">Usage</label>
+                    <p className="text-sm font-bold text-slate-900">{coupon.usage_count} / {coupon.max_uses || '∞'}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button onClick={() => handleEdit(coupon)} className="flex-1 py-2 bg-slate-50 text-slate-900 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-slate-100 border border-slate-100">Edit</button>
+                  <button onClick={() => handleToggleActive(coupon)} className="p-2 border border-slate-100 rounded-sm text-slate-400"><Icon icon={coupon.is_active ? FiX : FiCheck} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white border border-slate-100 rounded-sm shadow-sm overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm">No coupons found matching filters.</td>
+                  <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-widest text-slate-500">Campaign info</th>
+                  <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-widest text-slate-500">Discount</th>
+                  <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-widest text-slate-500">Usage Stats</th>
+                  <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-widest text-slate-500">Status</th>
+                  <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">Actions</th>
                 </tr>
-              ) : (
-                filteredData.map(coupon => (
-                  <tr key={coupon.id} className="hover:bg-slate-50 transition-colors group">
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredData.map(coupon => (
+                  <tr key={coupon.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-6 py-4">
-                      <div className="font-mono text-sm font-bold text-slate-900 bg-slate-100 inline-block px-2 py-1 rounded-sm border border-slate-200">
-                        {coupon.code}
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">{coupon.discount_type}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-slate-900">
-                        {coupon.discount_type === 'percent' ? `${coupon.discount_value}%` : formatCurrency(coupon.discount_value)}
-                      </div>
-                      {coupon.min_subtotal > 0 && (
-                        <div className="text-[10px] text-slate-500 mt-0.5">Min: {formatCurrency(coupon.min_subtotal)}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-xs text-slate-600">
-                      <div className="text-[10px] text-slate-400">
-                        Limit: {coupon.max_uses || '∞'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-[10px] text-slate-500">
-                      {coupon.starts_at && coupon.ends_at ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span>{formatDate(coupon.starts_at)}</span>
-                          <span className="text-slate-300">to</span>
-                          <span>{formatDate(coupon.ends_at)}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-sm bg-slate-100 flex items-center justify-center text-slate-400">
+                          <Icon icon={FiTag} />
                         </div>
-                      ) : (
-                        <span className="text-slate-400 italic">No expiry</span>
-                      )}
+                        <div>
+                          <div className="font-mono font-bold text-slate-900">{coupon.code}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">{coupon.starts_at && coupon.ends_at ? `${formatDate(coupon.starts_at)} - ${formatDate(coupon.ends_at)}` : 'No expiry set'}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-2 py-1 rounded-sm text-xs font-bold ${coupon.discount_type === 'percent' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+                        {coupon.discount_type === 'percent' ? `${coupon.amount}% OFF` : `-${formatCurrency(coupon.amount)}`}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-slate-900">{coupon.usage_count} uses</div>
+                      <div className="w-24 h-1 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                        <div className="h-full bg-slate-900" style={{ width: `${Math.min(((coupon.usage_count || 0) / (coupon.max_uses || 100)) * 100, 100)}%` }}></div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
                       <button onClick={() => handleToggleActive(coupon)}>
-                        {coupon.is_active ? (
-                          <Badge variant="success">Active</Badge>
-                        ) : (
-                          <Badge variant="secondary">Inactive</Badge>
-                        )}
+                        <Badge variant={coupon.is_active ? 'success' : 'secondary'}>{coupon.is_active ? 'Active' : 'Stopped'}</Badge>
                       </button>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleEdit(coupon)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all" title="Edit">
-                          <Icon icon={FiEdit3} size={14} />
-                        </button>
-                        <button onClick={() => handleDuplicate(coupon)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all" title="Duplicate">
-                          <Icon icon={FiCopy} size={14} />
-                        </button>
+                        <button onClick={() => handleEdit(coupon)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all" title="Edit"><Icon icon={FiEdit3} size={15} /></button>
+                        <button onClick={() => handleDuplicate(coupon)} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-white rounded-full transition-all" title="Duplicate"><Icon icon={FiCopy} size={15} /></button>
                         {isSuperAdmin && (
-                          <button onClick={() => handleDelete(coupon.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all" title="Delete">
-                            <Icon icon={FiTrash2} size={14} />
-                          </button>
+                          <button onClick={() => handleDelete(coupon.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-full transition-all" title="Delete"><Icon icon={FiTrash2} size={15} /></button>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
-      {/* --- CREATE/EDIT DIALOG --- */}
-      {isDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-2xl rounded-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                  {editingCoupon ? 'Edit Coupon' : 'Create Coupon'}
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">Configure discount rules and limits.</p>
-              </div>
-              <button onClick={() => setIsDialogOpen(false)} className="text-slate-400 hover:text-slate-900">
-                <Icon icon={FiX} size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-8">
-
-              {/* SECTION: BASIC INFO */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 border-b pb-2">General</h4>
-
-                <div className="flex gap-4 items-start">
-                  <div className="flex-grow">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Coupon Code</label>
-                    <input
-                      required
-                      value={formData.code}
-                      onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 text-sm font-mono uppercase font-bold rounded-sm outline-none focus:border-slate-900"
-                      placeholder="e.g. SUMMER2024"
-                    />
-                  </div>
-                  <div className="flex-shrink-0 pt-6">
-                    <label className="flex items-center cursor-pointer select-none">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={formData.is_active}
-                          onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                        />
-                        <div className={`block w-10 h-6 rounded-full transition-colors ${formData.is_active ? 'bg-green-500' : 'bg-slate-200'}`}></div>
-                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.is_active ? 'transform translate-x-4' : ''}`}></div>
-                      </div>
-                      <span className="ml-3 text-xs font-bold uppercase tracking-widest text-slate-600">Active</span>
-                    </label>
-                  </div>
+      {/* DIALOG */}
+      <AnimatePresence>
+        {isDialogOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-2xl rounded-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">{editingCoupon ? 'Edit Campaign' : 'New Campaign'}</h3>
+                  <p className="text-xs text-slate-500 mt-1">Configure discount rules and validity.</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Type</label>
-                    <div className="flex bg-slate-100 p-1 rounded-sm">
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, discount_type: 'percent' })}
-                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all ${formData.discount_type === 'percent' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-                      >
-                        Percent
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFormData({ ...formData, discount_type: 'fixed' })}
-                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-sm transition-all ${formData.discount_type === 'fixed' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}`}
-                      >
-                        Fixed
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Value</label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        value={formData.discount_value}
-                        onChange={e => setFormData({ ...formData, discount_value: parseFloat(e.target.value) })}
-                        className="w-full bg-slate-50 border border-slate-200 p-3 pl-8 text-sm font-bold rounded-sm outline-none focus:border-slate-900"
-                      />
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                        <Icon icon={formData.discount_type === 'percentage' ? FiPercent : FiDollarSign} size={14} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <button onClick={() => setIsDialogOpen(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors"><Icon icon={FiX} size={20} /></button>
               </div>
 
-              {/* SECTION: MARQUEE */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b pb-2">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Navbar Marquee</h4>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Show on Navbar</span>
-                    <input
-                      type="checkbox"
-                      className="accent-slate-900 w-4 h-4"
-                      checked={showInMarquee}
-                      onChange={e => setShowInMarquee(e.target.checked)}
-                    />
-                  </label>
-                </div>
+              {/* TABS */}
+              <div className="flex border-b border-slate-100 bg-slate-50/50 px-6 gap-6">
+                {['general', 'restrictions', 'marketing'].map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab as any)}
+                    className={`py-4 text-xs font-bold uppercase tracking-widest relative ${activeTab === tab ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                  >
+                    {tab}
+                    {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900" />}
+                  </button>
+                ))}
+              </div>
 
-                {showInMarquee && (
-                  <div className="bg-slate-50 p-4 rounded-sm border border-slate-200 animate-in slide-in-from-top-2">
-                    <div className="flex items-start gap-3">
-                      <Icon icon={FiBell} className="mt-2 text-slate-400" />
-                      <div className="flex-grow">
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Marquee Message</label>
-                        <input
-                          value={marqueeMessage}
-                          onChange={e => setMarqueeMessage(e.target.value)}
-                          placeholder={`${formData.code || 'CODE'} — Tap to copy`}
-                          className="w-full bg-white border border-slate-200 p-2 text-sm rounded-sm outline-none focus:border-slate-900"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-2">This will replace any existing marquee. Must be active and within dates to show.</p>
+              <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-8 relative">
+
+                {/* GENERAL TAB */}
+                {activeTab === 'general' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Campaign Code</label>
+                        <input required value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })} className="w-full bg-slate-50 border border-slate-200 p-4 text-sm font-mono uppercase font-bold rounded-sm outline-none focus:border-slate-900 transition-colors" placeholder="e.g. SUMMER24" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Status</label>
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-sm">
+                          <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="accent-slate-900 w-5 h-5" />
+                          <span className="text-sm font-medium text-slate-900">{formData.is_active ? 'Active' : 'Inactive'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50 border border-slate-100 rounded-sm space-y-6">
+                      <h4 className="text-xs font-bold uppercase text-slate-900 flex items-center gap-2"><Icon icon={FiDollarSign} /> Discount Value</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex bg-white border border-slate-200 rounded-sm overflow-hidden">
+                          <button type="button" onClick={() => setFormData({ ...formData, discount_type: 'percent' })} className={`flex-1 text-xs font-bold uppercase tracking-wide ${formData.discount_type === 'percent' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Percent</button>
+                          <button type="button" onClick={() => setFormData({ ...formData, discount_type: 'fixed' })} className={`flex-1 text-xs font-bold uppercase tracking-wide ${formData.discount_type === 'fixed' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>Fixed</button>
+                        </div>
+                        <div className="relative">
+                          <input type="number" min="0" value={formData.amount} onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) })} className="w-full bg-white border border-slate-200 p-2.5 pl-8 text-sm font-bold rounded-sm outline-none focus:border-slate-900" />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{formData.discount_type === 'percent' ? '%' : '$'}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
 
-              {/* SECTION: TARGETED CUSTOMERS */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 border-b pb-2">Targeted Customers (Restricted)</h4>
-
-                <div className="bg-slate-50 p-4 rounded-sm border border-slate-200">
-                  <div className="flex gap-2 mb-4">
-                    <div className="relative flex-grow">
-                      <Icon icon={FiLock} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                      <input
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        placeholder="Add email address to restrict..."
-                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 text-sm rounded-sm outline-none focus:border-slate-900"
-                        onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddEmail())}
-                      />
+                {/* RESTRICTIONS TAB */}
+                {activeTab === 'restrictions' && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Min Order Subtotal</label>
+                        <input type="number" min="0" value={formData.min_subtotal} onChange={e => setFormData({ ...formData, min_subtotal: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 p-3 text-sm rounded-sm outline-none focus:border-slate-900" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Total Max Uses</label>
+                        <input type="number" min="0" placeholder="Unlimited" value={formData.max_uses || ''} onChange={e => setFormData({ ...formData, max_uses: e.target.value ? parseInt(e.target.value) : null })} className="w-full bg-slate-50 border border-slate-200 p-3 text-sm rounded-sm outline-none focus:border-slate-900" />
+                      </div>
                     </div>
-                    <button type="button" onClick={handleAddEmail} className="px-4 py-2 bg-slate-200 text-slate-700 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-slate-300">
-                      Add
-                    </button>
-                  </div>
 
-                  {allowedEmails.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {allowedEmails.map(email => (
-                        <span key={email} className="inline-flex items-center bg-white border border-slate-200 px-3 py-1 rounded-full text-xs text-slate-600">
-                          {email}
-                          <button type="button" onClick={() => handleRemoveEmail(email)} className="ml-2 text-slate-400 hover:text-red-500">
-                            <Icon icon={FiX} size={12} />
-                          </button>
-                        </span>
-                      ))}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Starts Date</label>
+                        <input type="datetime-local" value={formData.starts_at || ''} onChange={e => setFormData({ ...formData, starts_at: e.target.value || null })} className="w-full bg-slate-50 border border-slate-200 p-3 text-xs rounded-sm outline-none focus:border-slate-900" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Ends Date</label>
+                        <input type="datetime-local" value={formData.ends_at || ''} onChange={e => setFormData({ ...formData, ends_at: e.target.value || null })} className="w-full bg-slate-50 border border-slate-200 p-3 text-xs rounded-sm outline-none focus:border-slate-900" />
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No restrictions. Open to all users.</p>
-                  )}
-                </div>
+
+                    <div className="p-6 bg-amber-50 border border-amber-100 rounded-sm">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-3 flex items-center gap-2"><Icon icon={FiLock} /> Restrict to Emails</label>
+                      <div className="flex gap-2 mb-3">
+                        <input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="customer@example.com" className="flex-grow bg-white border border-amber-200 p-2 text-sm rounded-sm outline-none focus:border-amber-500" />
+                        <button type="button" onClick={handleAddEmail} className="px-4 bg-amber-200 text-amber-800 text-xs font-bold uppercase rounded-sm hover:bg-amber-300">Add</button>
+                      </div>
+                      {allowedEmails.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {allowedEmails.map(email => (
+                            <span key={email} className="bg-white border border-amber-200 px-2 py-1 rounded text-xs text-amber-800 flex items-center gap-2">
+                              {email}
+                              <button type="button" onClick={() => setAllowedEmails(allowedEmails.filter(e => e !== email))} className="hover:text-red-500"><Icon icon={FiX} size={10} /></button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {allowedEmails.length === 0 && <p className="text-xs text-amber-600/60 italic">No restrictions. Available to everyone.</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* MARKETING TAB */}
+                {activeTab === 'marketing' && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-sm">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="text-sm font-bold text-indigo-900">Announcement Bar</h4>
+                          <p className="text-xs text-indigo-600 mt-1">Display this code at the top of the website.</p>
+                        </div>
+                        <input type="checkbox" checked={showInMarquee} onChange={e => setShowInMarquee(e.target.checked)} className="accent-indigo-900 w-5 h-5" />
+                      </div>
+                      {showInMarquee && (
+                        <div className="bg-white border border-indigo-200 p-3 rounded-sm animate-in slide-in-from-top-2">
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-indigo-400 mb-2">Message</label>
+                          <input value={marqueeMessage} onChange={e => setMarqueeMessage(e.target.value)} placeholder={`${formData.code} — Tap to copy`} className="w-full bg-slate-50 border-none p-2 text-sm rounded-sm outline-none" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              </form>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-4">
+                <button onClick={() => setIsDialogOpen(false)} className="flex-1 py-3 border border-slate-200 bg-white text-xs font-bold uppercase tracking-widest hover:bg-slate-50 rounded-sm transition-colors text-slate-600">Cancel</button>
+                <button onClick={handleSave} disabled={dialogLoading} className="flex-1 py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-black rounded-sm transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed">
+                  {dialogLoading ? 'Saving...' : 'Save & Publish'}
+                </button>
               </div>
 
-              {/* SECTION: LIMITS */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400 border-b pb-2">Limits & Validity</h4>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Minimum Subtotal</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.min_subtotal}
-                    onChange={e => setFormData({ ...formData, min_subtotal: parseFloat(e.target.value) })}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 text-sm rounded-sm outline-none focus:border-slate-900"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Total Max Uses</label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Unlimited"
-                      value={formData.max_uses || ''}
-                      onChange={e => setFormData({ ...formData, max_uses: e.target.value ? parseInt(e.target.value) : null })}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 text-sm rounded-sm outline-none focus:border-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Per User Limit</label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Unlimited"
-                      value={formData.max_uses_per_user || ''}
-                      onChange={e => setFormData({ ...formData, max_uses_per_user: e.target.value ? parseInt(e.target.value) : null })}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 text-sm rounded-sm outline-none focus:border-slate-900"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Starts At</label>
-                    <input
-                      type="datetime-local"
-                      value={formData.starts_at || ''}
-                      onChange={e => setFormData({ ...formData, starts_at: e.target.value || null })}
-                      className="w-full bg-slate-50 border border-slate-200 p-2 text-xs rounded-sm outline-none focus:border-slate-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Ends At</label>
-                    <input
-                      type="datetime-local"
-                      value={formData.ends_at || ''}
-                      onChange={e => setFormData({ ...formData, ends_at: e.target.value || null })}
-                      className="w-full bg-slate-50 border border-slate-200 p-2 text-xs rounded-sm outline-none focus:border-slate-900"
-                    />
-                  </div>
-                </div>
-              </div>
-
-            </form>
-
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-              <button onClick={() => setIsDialogOpen(false)} className="flex-1 py-3 border border-slate-200 text-xs font-bold uppercase tracking-widest hover:bg-slate-50 rounded-sm">Cancel</button>
-              <button
-                onClick={handleSave}
-                disabled={dialogLoading}
-                className="flex-1 py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-slate-800 rounded-sm disabled:opacity-50"
-              >
-                {dialogLoading ? 'Saving...' : 'Save Coupon'}
-              </button>
-            </div>
-
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
     </div>
   );

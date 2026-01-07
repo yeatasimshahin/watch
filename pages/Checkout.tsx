@@ -158,9 +158,9 @@ export const Checkout: React.FC = () => {
   const discountAmount = React.useMemo(() => {
     if (!coupon) return 0;
     let d = 0;
-    if (coupon.discount_type === 'fixed') d = coupon.discount_value;
-    else if (coupon.discount_type === 'percentage') {
-      d = Math.round((cartSubtotal * coupon.discount_value) / 100);
+    if (coupon.discount_type === 'fixed') d = coupon.amount;
+    else if (coupon.discount_type === 'percent') {
+      d = Math.round((cartSubtotal * coupon.amount) / 100);
       if (coupon.max_discount) d = Math.min(d, coupon.max_discount);
     }
     return Math.min(d, cartSubtotal);
@@ -302,9 +302,9 @@ export const Checkout: React.FC = () => {
             if (!isAllowed) throw new Error('This coupon is not valid for your account.');
           }
 
-          if (cData.discount_type === 'fixed') finalDiscount = cData.discount_value;
+          if (cData.discount_type === 'fixed') finalDiscount = cData.amount;
           else {
-            finalDiscount = Math.round((verifiedSubtotal * cData.discount_value) / 100);
+            finalDiscount = Math.round((verifiedSubtotal * cData.amount) / 100);
             if (cData.max_discount) finalDiscount = Math.min(finalDiscount, cData.max_discount);
           }
         }
